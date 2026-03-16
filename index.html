@@ -10,14 +10,12 @@
         .vas-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 10px; background: #e2e8f0; border-radius: 5px; outline: none; }
         .vas-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 34px; height: 34px; background: #ffffff; border: 4px solid #2563eb; border-radius: 50%; cursor: pointer; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
         .hidden { display: none !important; }
-        .scale-label { font-size: 10px; font-weight: 900; color: #94a3b8; }
     </style>
 </head>
 <body class="p-4 flex flex-col items-center min-h-screen">
 
-    <!-- 起動中・エラー時の真っ白回避用土台 -->
     <div id="app" class="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200 border border-slate-100 p-8 my-4 flex flex-col min-h-[600px] justify-center items-center">
-        <div id="loading-msg" class="text-center">
+        <div id="status-area" class="text-center">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p class="text-slate-500 font-bold">システムを起動中...<br><span class="text-[10px]">しばらくお待ちください</span></p>
         </div>
@@ -33,9 +31,9 @@
         const SUBJECTS = Array.from({ length: 15 }, (_, i) => `被験者${String(i + 1).padStart(2, '0')}`);
 
         // ==========================================
-        // 2. 状態管理（v17.3 Stable）
+        // 2. 状態管理 (v17.4 Stable)
         // ==========================================
-        const VERSION = "17.3";
+        const VERSION = "17.4";
         const KEY_USER = 'akk_u_' + VERSION;
         const KEY_DONE = 'akk_d_' + VERSION;
         const KEY_DATE = 'akk_t_' + VERSION;
@@ -45,31 +43,28 @@
         let currentMode = null;
         let touchedIndices = new Set();
 
-        window.onload = function() {
-            try {
-                initApp();
-            } catch (e) {
-                document.getElementById('app').innerHTML = `<div class="text-red-500 p-4 text-center font-bold">エラーが発生しました。ブラウザを更新してください。<br><small>${e.message}</small></div>`;
-            }
-        };
+        // エラーに強いデータ保存関数
+        function safeGet(key) { try { return localStorage.getItem(key); } catch(e) { return null; } }
+        function safeSet(key, val) { try { localStorage.setItem(key, val); } catch(e) {} }
 
+        // メインプログラムの開始
         function initApp() {
-            userName = localStorage.getItem(KEY_USER) || "";
-            const storedDone = localStorage.getItem(KEY_DONE);
-            try { 
-                completedTasks = storedDone ? JSON.parse(storedDone) : {}; 
-            } catch(e) { 
-                completedTasks = {}; 
-            }
+            try {
+                userName = safeGet(KEY_USER) || "";
+                const storedDone = safeGet(KEY_DONE);
+                completedTasks = storedDone ? JSON.parse(storedDone) : {};
 
-            const todayStr = new Date().toLocaleDateString('ja-JP');
-            const lastDate = localStorage.getItem(KEY_DATE) || "";
-            if (lastDate !== todayStr) {
-                completedTasks = {};
-                localStorage.setItem(KEY_DONE, "{}");
-                localStorage.setItem(KEY_DATE, todayStr);
+                const todayStr = new Date().toLocaleDateString('ja-JP');
+                const lastDate = safeGet(KEY_DATE) || "";
+                if (lastDate !== todayStr) {
+                    completedTasks = {};
+                    safeSet(KEY_DONE, "{}");
+                    safeSet(KEY_DATE, todayStr);
+                }
+                render();
+            } catch (e) {
+                document.getElementById('app').innerHTML = `<div class="p-8 text-center"><p class="text-red-500 font-bold">起動に失敗しました</p><p class="text-xs text-slate-400 mt-4">${e.message}</p><button onclick="location.reload()" class="mt-8 bg-blue-600 text-white px-6 py-3 rounded-xl">再読み込み</button></div>`;
             }
-            render();
         }
 
         const VAS_DEFS = {
@@ -104,33 +99,37 @@
             el.classList.remove('justify-center', 'items-center');
             
             if (!userName) {
-                el.innerHTML = `<div class="flex flex-col items-center justify-center flex-grow py-10"><h2 class="text-2xl font-black text-slate-900 mb-8 italic border-b-4 border-blue-500 pb-2">Registration</h2><select id="userSelect" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-lg font-bold mb-6 focus:border-blue-500 outline-none"><option value="" disabled selected>名前を選択してください</option>${SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('')}</select><button onclick="saveUser()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all">プロジェクトを開始する</button><p class="mt-10 text-[9px] text-slate-300 font-bold uppercase tracking-widest">Version ${VERSION}</p></div>`;
+                el.innerHTML = `<div class="flex flex-col items-center justify-center flex-grow py-10 w-full animate-in fade-in duration-500"><h2 class="text-2xl font-black text-slate-900 mb-8 italic border-b-4 border-blue-500 pb-2 uppercase tracking-tighter">Registration</h2><select id="userSelect" class="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-lg font-bold mb-6 outline-none focus:border-blue-500"><option value="" disabled selected>名前を選択してください</option>${SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('')}</select><button onclick="saveUser()" class="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-lg active:scale-95 transition-all">プロジェクトを開始する</button><p class="mt-12 text-[10px] text-slate-300 font-bold uppercase tracking-widest">Stable Release v${VERSION}</p></div>`;
             } else if (currentMode) {
                 const defs = VAS_DEFS[currentMode];
                 const isNight = currentMode === "夕食2時間後";
-                el.innerHTML = `<div class="flex justify-between items-center mb-8"><h2 class="text-xl font-black text-slate-900">${currentMode}</h2><button onclick="cancelMode()" class="text-slate-300 p-2 text-xl">✕</button></div><div class="space-y-12 mb-10">${defs.map((d, i) => `<div class="space-y-4"><div class="flex justify-between items-end px-1"><label class="font-black text-slate-700 text-[13px] leading-tight w-3/4">${d.name}</label><span id="val-${i}" class="text-4xl font-black text-blue-600 italic tracking-tighter">--</span></div><div class="px-2"><div class="flex justify-between scale-label mb-2 px-1"><span>0</span><span>50</span><span>100</span></div><input type="range" min="0" max="100" value="50" oninput="updateVal(${i}, this.value)" class="vas-slider"><div class="flex justify-between text-[10px] font-bold text-slate-400 mt-3 gap-4"><span class="w-1/3 text-left leading-tight">${d.left}</span><span class="w-1/3 text-center text-blue-200">50</span><span class="w-1/3 text-right leading-tight">${d.right}</span></div></div></div>`).join('')}</div>${isNight ? `<div class="border-t pt-10 space-y-8 pb-20"><h3 class="font-black text-blue-600 text-sm border-l-4 border-blue-500 pl-3">調査報告（夜）</h3><div class="space-y-4"><label class="text-[12px] font-black text-slate-500 block">2. サプリメントを摂取しましたか？</label><select id="q_intake" onchange="toggleReason(this.value)" class="w-full p-4 bg-slate-50 border-2 rounded-2xl font-bold"><option>飲んだ</option><option>飲んでいない</option></select><div id="reason_box" class="hidden mt-4 p-5 bg-red-50 rounded-2xl border border-red-100 space-y-2"><p class="text-[10px] font-bold text-red-600">理由を選択してください</p><select id="q_intake_reason" class="w-full p-4 bg-white rounded-xl text-sm font-bold border-none"><option>飲み忘れ</option><option>体調不良</option><option>外出</option><option>多忙のため</option><option>その他</option></select></div></div><div class="space-y-4"><label class="text-[12px] font-black text-slate-500 block">3. 間食状況（カロミル以外）</label><select id="q_snack" class="w-full p-4 bg-slate-50 rounded-2xl font-bold"><option>とらなかった</option><option>1回とった</option><option>2回とった</option><option>3回以上とった</option></select></div><div class="space-y-6"><p class="text-[12px] font-black text-slate-500">4. お腹の調子</p><select id="q_bowel_count" class="w-full p-4 bg-slate-50 rounded-2xl font-bold mb-4 text-sm"><option value="" disabled selected>排便回数</option><option>なし</option><option>1回</option><option>2回以上</option></select><select id="q_bowel_status" class="w-full p-4 bg-slate-50 rounded-2xl font-bold text-[10px]"><option>特に変わりない</option><option>改善した</option><option>気になる変化がある</option></select></div><div class="space-y-6"><p class="text-[12px] font-black text-slate-500">5. 有害事象</p><select id="q_adverse" onchange="toggleAdverse(this.value)" class="w-full p-4 bg-slate-50 rounded-2xl font-bold"><option>特になし</option><option>あり</option></select><div id="adverse_box" class="hidden mt-4"><textarea id="q_adverse_detail" class="w-full p-4 bg-white border border-blue-200 rounded-xl text-sm h-32" placeholder="詳細を入力してください"></textarea></div></div><textarea id="q_comment" class="w-full p-4 bg-slate-50 rounded-3xl h-40 text-sm font-medium" placeholder="自由記述欄（感想など）"></textarea></div>` : ''}<div class="mt-8 sticky bottom-0 bg-white pb-6 pt-4 border-t"><button id="submitBtn" onclick="submitData()" disabled class="w-full bg-blue-600 text-white font-black py-5 rounded-[2rem] shadow-xl opacity-30 transition-all italic">データを確定して送信</button></div>`;
+                el.innerHTML = `<div class="w-full animate-in slide-in-from-right duration-300"><div class="flex justify-between items-center mb-8"><h2 class="text-xl font-black text-slate-900">${currentMode}</h2><button onclick="cancelMode()" class="text-slate-300 p-2 text-xl">✕</button></div><div class="space-y-12 mb-10">${defs.map((d, i) => `<div class="space-y-4"> <div class="flex justify-between items-end px-1"> <label class="font-black text-slate-700 text-[13px] leading-tight w-3/4">${d.name}</label> <span id="val-${i}" class="text-4xl font-black text-blue-600 italic tracking-tighter leading-none">--</span> </div> <div class="px-2"> <div class="flex justify-between text-[10px] font-black text-slate-300 mb-2 px-1"><span>0</span><span>50</span><span>100</span></div> <input type="range" min="0" max="100" value="50" oninput="updateVal(${i}, this.value)" class="vas-slider"> <div class="flex justify-between text-[10px] font-bold text-slate-400 mt-3 gap-4"> <span class="w-1/3 text-left leading-tight">${d.left}</span> <span class="w-1/3 text-center text-blue-200">50</span> <span class="w-1/3 text-right leading-tight">${d.right}</span> </div> </div></div>`).join('')}</div>${isNight ? `<div class="border-t pt-10 space-y-8 pb-20"><h3 class="font-black text-blue-600 text-sm border-l-4 border-blue-500 pl-3">調査報告（夜）</h3><div class="space-y-4"><label class="text-[12px] font-black text-slate-500 block leading-tight">2. 本日のサプリメントを摂取しましたか？</label><select id="q_intake" onchange="toggleReason(this.value)" class="w-full p-4 bg-slate-50 border-2 rounded-2xl font-bold"><option>飲んだ</option><option>飲んでいない</option></select><div id="reason_box" class="hidden mt-4 p-5 bg-red-50 rounded-2xl border border-red-100 space-y-2"><p class="text-[10px] font-bold text-red-600 italic">理由を選択してください</p><select id="q_intake_reason" class="w-full p-4 bg-white rounded-xl text-sm font-bold border-none outline-none"><option>飲み忘れ</option><option>体調不良</option><option>外出</option><option>多忙のため</option><option>その他</option></select></div></div><div class="space-y-4"><label class="text-[12px] font-black text-slate-500 block">3. 間食状況（カロミル以外）</label><select id="q_snack" class="w-full p-4 bg-slate-50 rounded-2xl font-bold"><option>とらなかった</option><option>1回とった</option><option>2回とった</option><option>3回以上とった</option></select></div><div class="space-y-6"><p class="text-[12px] font-black text-slate-500">4. お腹の調子</p><select id="q_bowel_count" class="w-full p-4 bg-slate-50 rounded-2xl font-bold mb-4 text-sm"><option value="" disabled selected>排便回数</option><option>なし</option><option>1回</option><option>2回以上</option></select><select id="q_bowel_status" class="w-full p-4 bg-slate-50 rounded-2xl font-bold text-[10px] leading-tight"><option>特に変わりない</option><option>改善した（スッキリ感等）</option><option>気になる変化がある</option></select></div><div class="space-y-6"><p class="text-[12px] font-black text-slate-500">5. 有害事象（体調確認）</p><select id="q_adverse" onchange="toggleAdverse(this.value)" class="w-full p-4 bg-slate-50 rounded-2xl font-bold"><option>特になし</option><option>あり</option></select><div id="adverse_box" class="hidden mt-4"><textarea id="q_adverse_detail" class="w-full p-4 bg-white border border-blue-200 rounded-xl text-sm h-32" placeholder="詳細を入力してください"></textarea></div></div><textarea id="q_comment" class="w-full p-4 bg-slate-50 rounded-3xl h-40 text-sm font-medium outline-none border-2 border-transparent focus:border-blue-500" placeholder="自由記述欄（気づいたことなど）"></textarea></div>` : ''}<div class="mt-8 sticky bottom-0 bg-white pb-6 pt-4 border-t"><button id="submitBtn" onclick="submitData()" disabled class="w-full bg-blue-600 text-white font-black py-5 rounded-[2rem] shadow-xl opacity-30 transition-all italic tracking-widest">データを送信する</button></div></div>`;
             } else {
-                el.innerHTML = `<header class="flex justify-between items-start mb-10"><div><h1 class="text-2xl font-black text-slate-900 tracking-tighter">AKK-EVIDENCE</h1><p class="text-blue-600 font-bold text-[10px] mt-2 uppercase tracking-widest">${userName}</p></div><div class="bg-slate-900 text-white text-[10px] font-black px-4 py-2 rounded-full shadow-lg leading-none">${getDayStatus()}</div></header><div class="space-y-4 flex-grow">${Object.keys(VAS_DEFS).map(mode => { const done = completedTasks[mode]; return `<button onclick="${done ? '' : `setMode('${mode}')`}" class="w-full flex items-center justify-between p-6 rounded-[2rem] border transition-all ${done ? 'bg-slate-50 border-slate-50 opacity-40 cursor-default' : 'bg-white border-slate-100 shadow-sm active:scale-95 active:bg-slate-50'}"><span class="font-black text-slate-800 text-lg leading-none">${mode}</span>${done ? '<span class="text-emerald-500 font-bold text-[10px] uppercase tracking-widest underline decoration-emerald-200 underline-offset-4">Finished ✅</span>' : '<span class="text-slate-200 text-xl font-bold">＞</span>'}</button>`; }).join('')}</div><div class="mt-10 flex flex-col items-center gap-4"><button onclick="changeUser()" class="text-[9px] text-slate-300 font-bold uppercase tracking-widest underline decoration-slate-100">名前を変更する</button></div>`;
+                el.innerHTML = `<div class="w-full animate-in fade-in duration-500"><header class="flex justify-between items-start mb-10"><div><h1 class="text-2xl font-black text-slate-900 tracking-tighter leading-none">AKK-EVIDENCE</h1><p class="text-blue-600 font-bold text-[10px] mt-2 uppercase tracking-widest italic leading-none">${userName}</p></div><div class="bg-slate-900 text-white text-[10px] font-black px-4 py-2 rounded-full shadow-lg leading-none">${getDayStatus()}</div></header><div class="space-y-4 flex-grow">${Object.keys(VAS_DEFS).map(mode => { const done = completedTasks[mode]; return `<button onclick="${done ? '' : `setMode('${mode}')`}" class="w-full flex items-center justify-between p-6 rounded-[2rem] border transition-all ${done ? 'bg-slate-50 border-slate-50 opacity-40 cursor-default' : 'bg-white border-slate-100 shadow-sm active:bg-slate-50 active:scale-95'}"><span class="font-black text-slate-800 text-lg leading-none">${mode}</span>${done ? '<span class="text-emerald-500 font-bold text-[10px] uppercase tracking-widest underline decoration-emerald-200 underline-offset-4">Finished ✅</span>' : '<span class="text-slate-200 text-xl font-bold">＞</span>'}</button>`; }).join('')}</div><div class="mt-12 flex flex-col items-center gap-4"><button onclick="changeUser()" class="text-[9px] text-slate-300 font-bold uppercase tracking-widest underline underline-offset-4 decoration-slate-100">登録名を変更する</button><p class="text-[9px] text-slate-100 font-bold tracking-widest opacity-20">BUILD VERSION ${VERSION}</p></div></div>`;
             }
         }
 
-        window.saveUser = () => { const val = document.getElementById('userSelect').value; if (!val) return; userName = val; localStorage.setItem(KEY_USER, val); render(); };
-        window.changeUser = () => { if(confirm("登録名を変更しますか？")){ localStorage.removeItem(KEY_USER); userName = ""; render(); } };
+        // --- アクション ---
+        window.saveUser = () => { const val = document.getElementById('userSelect').value; if (!val) return; userName = val; safeSet(KEY_USER, val); render(); };
+        window.changeUser = () => { if(confirm("名前を変更しますか？")){ try{ localStorage.clear(); }catch(e){} location.reload(); } };
         window.setMode = (m) => { currentMode = m; touchedIndices = new Set(); render(); window.scrollTo(0, 0); };
         window.cancelMode = () => { currentMode = null; render(); };
-        window.updateVal = (idx, val) => { document.getElementById(`val-${idx}`).innerText = val; touchedIndices.add(idx); const btn = document.getElementById('submitBtn'); if (touchedIndices.size === VAS_DEFS[currentMode].length) { btn.disabled = false; btn.innerText = "データを確定して送信"; btn.classList.remove('opacity-30'); } };
+        window.updateVal = (idx, val) => { document.getElementById(`val-${idx}`).innerText = val; touchedIndices.add(idx); const btn = document.getElementById('submitBtn'); if (touchedIndices.size === VAS_DEFS[currentMode].length) { btn.disabled = false; btn.innerText = "データを送信する"; btn.classList.remove('opacity-30'); } };
         window.toggleReason = (v) => { document.getElementById('reason_box').classList.toggle('hidden', v !== '飲んでいない'); };
         window.toggleAdverse = (v) => { document.getElementById('adverse_box').classList.toggle('hidden', v !== 'あり'); };
 
         window.submitData = async () => {
-            if (!WEB_APP_URL) return alert("URL未設定です");
+            if (!WEB_APP_URL) return alert("URLが設定されていません。コードの16行目を確認してください。");
             const btn = document.getElementById('submitBtn'); btn.disabled = true; btn.innerText = "送信中...";
             const payload = { name: userName, dayText: getDayStatus(), type: currentMode, val1: document.querySelector('input[type="range"]:nth-of-type(1)')?.value, val2: document.querySelector('input[type="range"]:nth-of-type(2)')?.value, val3: document.querySelector('input[type="range"]:nth-of-type(3)')?.value || null, intake: document.getElementById('q_intake')?.value || '', intakeReason: document.getElementById('q_intake_reason')?.value || '', snack: document.getElementById('q_snack')?.value || '', bowelCount: document.getElementById('q_bowel_count')?.value || '', bowelStatus: document.getElementById('q_bowel_status')?.value || '', adverseEvent: document.getElementById('q_adverse')?.value || '', adverseDetail: document.getElementById('q_adverse_detail')?.value || '', freeComment: document.getElementById('q_comment')?.value || '' };
             try {
                 await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-                completedTasks[currentMode] = true; localStorage.setItem(KEY_DONE, JSON.stringify(completedTasks)); currentMode = null; alert("送信が完了しました！"); render();
-            } catch (e) { alert("送信エラーが発生しました。"); btn.disabled = false; btn.innerText = "再試行"; }
+                completedTasks[currentMode] = true; safeSet(KEY_DONE, JSON.stringify(completedTasks)); currentMode = null; alert("送信が完了しました！"); render();
+            } catch (e) { alert("送信に失敗しました。接続を確認してください。"); btn.disabled = false; btn.innerText = "再試行"; }
         };
+
+        // 即時実行
+        initApp();
     </script>
 </body>
 </html>
