@@ -8,7 +8,7 @@
     <style>
         body { font-family: sans-serif; -webkit-tap-highlight-color: transparent; background-color: #f8fafc; color: #1e293b; }
         .vas-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 10px; background: #e2e8f0; border-radius: 5px; outline: none; }
-        .vas-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 30px; height: 30px; background: #2563eb; border-radius: 50%; cursor: pointer; border: 4px solid #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .vas-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 30px; height: 30px; background: #2563eb; border: 4px solid #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
         .hidden { display: none !important; }
     </style>
 </head>
@@ -31,14 +31,15 @@
         const SUBJECTS = Array.from({ length: 15 }, (_, i) => `被験者${String(i + 1).padStart(2, '0')}`);
 
         // ==========================================
-        // 2. 状態管理（v18.2 Stable）
+        // 2. 状態管理（v18.3 Stable）
         // ==========================================
-        const VERSION = "v18.2";
-        const KEY_USER = 'akk_u_182';
-        const KEY_DONE = 'akk_d_182';
-        const KEY_DATE = 'akk_t_182';
+        const VERSION = "v18.3";
+        const KEY_USER = 'akk_u_183';
+        const KEY_DONE = 'akk_d_183';
+        const KEY_DATE = 'akk_t_183';
 
         let userName = localStorage.getItem(KEY_USER) || "";
+        let tempSelectedName = ""; // 確認用の一時保存
         let completedTasks = {};
         try { completedTasks = JSON.parse(localStorage.getItem(KEY_DONE) || "{}"); } catch(e) { completedTasks = {}; }
 
@@ -71,25 +72,44 @@
         function render() {
             const app = document.getElementById('app');
             
+            // ログインしていない場合
             if (!userName) {
-                app.innerHTML = `
-                    <div class="w-full py-10 text-center">
-                        <h2 class="text-2xl font-black mb-8 text-slate-800 italic border-b-4 border-blue-500 pb-2 inline-block">Monitor Entry</h2>
-                        <select id="uSelect" class="w-full p-4 bg-slate-50 border-2 rounded-2xl text-lg mb-6 font-bold outline-none focus:border-blue-500">
-                            <option value="" disabled selected>お名前を選択してください</option>
-                            ${SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('')}
-                        </select>
-                        <button onclick="saveUser()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition-all">プロジェクトを開始する</button>
-                        <p class="mt-12 text-[10px] text-slate-300 font-bold uppercase tracking-widest">${VERSION} STABLE</p>
-                    </div>`;
+                if (!tempSelectedName) {
+                    // 名前選択画面
+                    app.innerHTML = `
+                        <div class="w-full py-10 text-center">
+                            <h2 class="text-2xl font-black mb-8 text-slate-800 border-b-4 border-blue-500 pb-2 inline-block">Monitor Entry</h2>
+                            <p class="text-slate-500 text-sm mb-4 font-bold">被験者番号を選択してください</p>
+                            <select id="uSelect" class="w-full p-4 bg-slate-50 border-2 rounded-2xl text-lg mb-6 font-bold outline-none focus:border-blue-500 appearance-none">
+                                <option value="" disabled selected>番号を選択</option>
+                                ${SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('')}
+                            </select>
+                            <button onclick="checkUser()" class="w-full bg-blue-600 text-white font-bold py-5 rounded-2xl shadow-lg active:scale-95 transition-all">次へ進む</button>
+                            <p class="mt-12 text-[10px] text-slate-300 font-bold uppercase tracking-widest">Version ${VERSION}</p>
+                        </div>`;
+                } else {
+                    // 確認画面
+                    app.innerHTML = `
+                        <div class="w-full py-10 text-center flex flex-col justify-center flex-grow">
+                            <div class="mb-8">
+                                <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">？</div>
+                                <h2 class="text-xl font-bold text-slate-800 leading-relaxed">あなたは<br><span class="text-3xl font-black text-blue-600">${tempSelectedName}</span><br>であってますか？</h2>
+                            </div>
+                            <div class="space-y-4">
+                                <button onclick="saveUser()" class="w-full bg-blue-600 text-white font-bold py-5 rounded-2xl shadow-lg active:scale-95 transition-all">はい、私です</button>
+                                <button onclick="tempSelectedName='';render();" class="w-full bg-slate-100 text-slate-500 font-bold py-4 rounded-2xl active:scale-95 transition-all">いいえ、戻ります</button>
+                            </div>
+                        </div>`;
+                }
                 return;
             }
 
+            // 記録フォーム画面
             if (currentMode) {
                 const defs = VAS_DEFS[currentMode];
                 const isNight = currentMode === "夕食2時間後";
                 app.innerHTML = `
-                    <div class="w-full">
+                    <div class="w-full flex flex-col min-h-full">
                         <div class="flex justify-between items-center mb-8">
                             <h2 class="text-xl font-black text-slate-800">${currentMode}</h2>
                             <button onclick="currentMode=null;render()" class="text-slate-300 p-2 text-xl">✕</button>
@@ -113,32 +133,35 @@
                                 </div>`).join('')}
                         </div>
                         ${isNight ? `
-                        <div class="border-t border-slate-100 pt-10 space-y-8 pb-20">
-                            <h3 class="font-black text-blue-600 text-sm border-l-4 border-blue-500 pl-3">調査チェックリスト</h3>
+                        <div class="border-t border-slate-100 pt-10 space-y-8 pb-10">
+                            <h3 class="font-black text-blue-600 text-sm border-l-4 border-blue-500 pl-3 uppercase tracking-widest">調査チェックリスト</h3>
                             <div class="space-y-4">
                                 <label class="text-[12px] font-bold text-slate-500 block">2. サプリ摂取状況</label>
-                                <select id="q_intake" onchange="document.getElementById('rb').classList.toggle('hidden', this.value !== '飲んでいない')" class="w-full p-4 bg-slate-50 border-2 rounded-xl font-bold"><option>飲んだ</option><option>飲んでいない</option></select>
-                                <div id="rb" class="hidden p-4 bg-red-50 rounded-xl"><select id="q_intake_reason" class="w-full p-2 rounded-lg border font-bold text-sm"><option value="">理由を選択してください</option><option>飲み忘れ</option><option>体調不良</option><option>外出</option><option>多忙</option><option>その他</option></select></div>
+                                <select id="q_intake" onchange="document.getElementById('rb').classList.toggle('hidden', this.value !== '飲んでいない')" class="w-full p-4 bg-slate-50 border-2 rounded-xl font-bold outline-none focus:border-blue-500"><option>飲んだ</option><option>飲んでいない</option></select>
+                                <div id="rb" class="hidden p-4 bg-red-50 rounded-xl"><select id="q_intake_reason" class="w-full p-2 rounded-lg border font-bold text-sm outline-none"><option value="">理由を選択してください</option><option>飲み忘れ</option><option>体調不良</option><option>外出</option><option>多忙</option><option>その他</option></select></div>
                             </div>
                             <div class="space-y-4">
                                 <label class="text-[12px] font-bold text-slate-500 block">3. 間食（カロミル以外）</label>
-                                <select id="q_snack" class="w-full p-4 bg-slate-50 border-2 rounded-xl font-bold"><option>とらなかった</option><option>1回とった</option><option>2回とった</option><option>3回以上</option></select>
+                                <select id="q_snack" class="w-full p-4 bg-slate-50 border-2 rounded-xl font-bold outline-none focus:border-blue-500"><option>とらなかった</option><option>1回とった</option><option>2回とった</option><option>3回以上</option></select>
                             </div>
                             <div class="space-y-6 pt-4 border-t">
                                 <p class="text-[12px] font-bold text-slate-500">4. お腹の調子（排便状況）</p>
-                                <select id="q_bowel_count" class="w-full p-4 bg-slate-50 border-2 rounded-xl font-bold mb-4 text-sm"><option value="" disabled selected>排便回数</option><option>なし</option><option>1回</option><option>2回以上</option></select>
-                                <select id="q_bowel_status" onchange="document.getElementById('bd').classList.toggle('hidden', !this.value.includes('気になる'))" class="w-full p-4 bg-slate-50 border-2 rounded-xl font-bold text-xs"><option>特に変わりない</option><option>改善した（スッキリ感等）</option><option>気になる変化がある</option></select>
-                                <div id="bd" class="hidden mt-2"><textarea id="q_bowel_detail" class="w-full p-4 bg-white border-2 rounded-xl text-sm h-24" placeholder="詳細を入力"></textarea></div>
+                                <select id="q_bowel_count" class="w-full p-4 bg-slate-50 border-2 rounded-xl font-bold mb-4 text-sm outline-none focus:border-blue-500"><option value="" disabled selected>排便回数</option><option>なし</option><option>1回</option><option>2回以上</option></select>
+                                <select id="q_bowel_status" onchange="document.getElementById('bd').classList.toggle('hidden', !this.value.includes('気になる'))" class="w-full p-4 bg-slate-50 border-2 rounded-xl font-bold text-xs outline-none focus:border-blue-500"><option>特に変わりない</option><option>改善した（スッキリ感等）</option><option>気になる変化がある</option></select>
+                                <div id="bd" class="hidden mt-2"><textarea id="q_bowel_detail" class="w-full p-4 bg-white border-2 rounded-xl text-sm h-24 outline-none focus:border-blue-500" placeholder="詳細を入力"></textarea></div>
                             </div>
                             <div class="space-y-4 pt-4 border-t">
                                 <p class="text-[12px] font-bold text-slate-500">5. 有害事象（異変）</p>
-                                <select id="q_adverse" onchange="document.getElementById('ab').classList.toggle('hidden', this.value !== 'あり')" class="w-full p-4 bg-slate-50 border-2 rounded-xl font-bold"><option>特になし</option><option>あり</option></select>
-                                <div id="ab" class="hidden mt-2"><textarea id="q_adverse_detail" class="w-full p-4 bg-white border-2 rounded-xl text-sm h-24" placeholder="具体的な内容と時間を記入"></textarea></div>
+                                <select id="q_adverse" onchange="document.getElementById('ab').classList.toggle('hidden', this.value !== 'あり')" class="w-full p-4 bg-slate-50 border-2 rounded-xl font-bold outline-none focus:border-blue-500"><option>特になし</option><option>あり</option></select>
+                                <div id="ab" class="hidden mt-2"><textarea id="q_adverse_detail" class="w-full p-4 bg-white border-2 rounded-xl text-sm h-24 outline-none focus:border-blue-500" placeholder="具体的な内容と時間を記入"></textarea></div>
                             </div>
                             <textarea id="q_comment" class="w-full p-4 bg-slate-50 border-2 rounded-3xl h-40 text-sm focus:border-blue-500 outline-none" placeholder="自由記述（気づいたこと、感想など）"></textarea>
                         </div>` : ''}
-                        <div class="mt-8 sticky bottom-0 bg-white pb-6 pt-2 border-t">
-                            <button id="sBtn" onclick="send()" disabled class="w-full bg-blue-600 text-white font-black py-5 rounded-[2rem] shadow-xl opacity-30 tracking-widest italic transition-all">データを送信する</button>
+                        
+                        <!-- ボタンは最後にスクロールしないと見えないように配置 -->
+                        <div class="mt-8 pb-10">
+                            <button id="sBtn" onclick="send()" disabled class="w-full bg-blue-600 text-white font-black py-5 rounded-[2rem] shadow-xl opacity-30 tracking-widest transition-all">データを送信する</button>
+                            <p class="text-center text-[10px] text-slate-300 mt-4 uppercase font-bold">全て入力すると送信できます</p>
                         </div>
                     </div>`;
                 return;
@@ -150,7 +173,12 @@
                     <header class="flex justify-between items-start mb-10 pt-4">
                         <div>
                             <h1 class="text-2xl font-black text-slate-900 tracking-tighter leading-none">AKK-EVIDENCE</h1>
-                            <p class="text-blue-600 font-bold text-[10px] mt-2 uppercase tracking-widest italic">${userName} <span class="text-slate-300 font-normal ml-2">/ ${todayStr}</span></p>
+                            <div class="flex items-center gap-2 mt-2">
+                                <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                                <span class="text-blue-600 font-bold text-[10px] tracking-widest uppercase italic">${userName}</span>
+                                <span class="text-slate-300 text-[10px]">|</span>
+                                <span class="text-slate-400 text-[10px] font-bold">${todayStr}</span>
+                            </div>
                         </div>
                         <div class="bg-slate-900 text-white text-[10px] font-black px-4 py-2 rounded-full shadow-lg">${getDayText()}</div>
                     </header>
@@ -162,18 +190,54 @@
                         }).join('')}
                     </div>
                     <div class="mt-20 text-center"><button onclick="resetApp()" class="text-[9px] text-slate-300 font-bold uppercase tracking-widest underline underline-offset-4">登録情報を変更する</button></div>
-                    <p class="text-center text-[8px] text-slate-100 mt-10 tracking-[0.4em] font-bold">${VERSION} STABLE RELEASE</p>
+                    <p class="text-center text-[8px] text-slate-100 mt-10 tracking-[0.4em] font-bold uppercase">System ${VERSION} Stable</p>
                 </div>`;
         }
 
         // --- 動作制御 ---
-        window.saveUser = () => { const v = document.getElementById('uSelect').value; if (!v) return; userName = v; localStorage.setItem(KEY_USER, v); render(); };
-        window.resetApp = () => { if(confirm("初期化しますか？")){ localStorage.clear(); location.reload(); } };
-        window.setM = (m) => { currentMode = m; touchedSet = new Set(); render(); window.scrollTo(0, 0); };
-        window.upd = (idx, val) => { document.getElementById(`v-${idx}`).innerText = val; touchedSet.add(idx); if (touchedSet.size === VAS_DEFS[currentMode].length) { const b = document.getElementById('sBtn'); b.disabled = false; b.classList.remove('opacity-30'); } };
+        window.checkUser = () => {
+            const v = document.getElementById('uSelect').value;
+            if (!v) return;
+            tempSelectedName = v;
+            render();
+        };
+
+        window.saveUser = () => {
+            if (!tempSelectedName) return;
+            userName = tempSelectedName;
+            localStorage.setItem(KEY_USER, userName);
+            render();
+        };
+
+        window.resetApp = () => {
+            if(confirm("初期登録をやり直しますか？")){
+                localStorage.removeItem(KEY_USER);
+                localStorage.removeItem(KEY_DONE);
+                userName = "";
+                tempSelectedName = "";
+                location.reload();
+            }
+        };
+
+        window.setM = (m) => {
+            currentMode = m;
+            touchedSet = new Set();
+            render();
+            window.scrollTo(0, 0);
+        };
+
+        window.upd = (idx, val) => {
+            document.getElementById(`v-${idx}`).innerText = val;
+            touchedSet.add(idx);
+            if (touchedSet.size === VAS_DEFS[currentMode].length) {
+                const b = document.getElementById('sBtn');
+                b.disabled = false;
+                b.classList.remove('opacity-30');
+            }
+        };
 
         window.send = async () => {
-            if (!WEB_APP_URL) return alert("URL未設定です。16行目を確認してください。");
+            if (!WEB_APP_URL) return alert("URL未設定です。コードの16行目を確認してください。");
             const btn = document.getElementById('sBtn'); 
             btn.disabled = true; btn.innerText = "送信中...";
 
@@ -206,7 +270,7 @@
             }
         };
 
-        // 起動！
+        // 起動
         window.onload = () => { setTimeout(render, 300); };
     </script>
 </body>
