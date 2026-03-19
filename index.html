@@ -15,6 +15,7 @@
 <body class="p-4 flex justify-center min-h-screen">
 
     <div id="app" class="w-full max-w-md bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8 my-4 min-h-[600px] flex flex-col items-center">
+        <!-- 起動メッセージ -->
         <div id="loading-area" class="mt-20 text-center">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
             <p class="text-blue-600 font-bold">システムを起動しています...</p>
@@ -23,19 +24,24 @@
 
     <script>
         // ==========================================
-        // 1. 設定：ここにGASのURLを貼ってください
+        // 1. 設定：名前リストとGASのURL
         // ==========================================
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw-ZIAfYdlPZ3IGwsUL-vfQuXujVXmb_LYSRheZ7qT-ySowGIQELavurTl9Bix93IMw/exec"; 
         const START_DATE = new Date("2026/03/28");
-        const SUBJECTS = Array.from({ length: 15 }, (_, i) => `被験者${String(i + 1).padStart(2, '0')}`);
+        
+        // 五十音順に並べ替え、ニックネームを追加したリスト
+        const SUBJECTS = [
+            "石河和美", "枝常拓", "大畑一真（ズマ）", "佐野康倫", "清水あやか", 
+            "鷲見沙織", "関田越子", "長尾優斗", "本多駿", "皆川望帆", "安田まゆか"
+        ];
 
         // ==========================================
-        // 2. 状態管理（v18.6 Stable）
+        // 2. 状態管理（v18.9 Stable）
         // ==========================================
-        const VERSION = "v18.6";
-        const KEY_USER = 'akk_u_186';
-        const KEY_DONE = 'akk_d_186';
-        const KEY_DATE = 'akk_t_186';
+        const VERSION = "18.9";
+        const KEY_USER = 'akk_u_189';
+        const KEY_DONE = 'akk_d_189';
+        const KEY_DATE = 'akk_t_189';
 
         let userName = localStorage.getItem(KEY_USER) || "";
         let tempSelectedName = ""; 
@@ -71,10 +77,10 @@
                 if (!tempSelectedName) {
                     app.innerHTML = `
                         <div class="w-full py-10 text-center">
-                            <h2 class="text-2xl font-black mb-8 text-slate-800 border-b-4 border-blue-500 pb-2 inline-block font-sans">被験者番号を選択</h2>
-                            <p class="text-slate-500 text-sm mb-6 font-bold">ご自身の番号を選択してください</p>
+                            <h2 class="text-2xl font-black mb-8 text-slate-800 border-b-4 border-blue-500 pb-2 inline-block font-sans">お名前を選択</h2>
+                            <p class="text-slate-500 text-sm mb-6 font-bold">ご自身のお名前を選択してください</p>
                             <select id="uSelect" class="w-full p-4 bg-slate-50 border-2 rounded-2xl text-lg mb-8 font-bold outline-none focus:border-blue-500 appearance-none text-center">
-                                <option value="" disabled selected>番号を選択</option>
+                                <option value="" disabled selected>名前を選択</option>
                                 ${SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('')}
                             </select>
                             <button onclick="checkUser()" class="w-full bg-blue-600 text-white font-bold py-5 rounded-2xl shadow-lg active:scale-95 transition-all text-lg">次へ進む</button>
@@ -85,7 +91,7 @@
                         <div class="w-full py-10 text-center flex flex-col justify-center flex-grow animate-in fade-in duration-300">
                             <div class="mb-10">
                                 <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-bold">？</div>
-                                <h2 class="text-xl font-bold text-slate-800 leading-relaxed">あなたは被験者番号<br><span class="text-4xl font-black text-blue-600 my-2 block">${tempSelectedName.replace('被験者', '')}</span><br>であってますか？</h2>
+                                <h2 class="text-xl font-bold text-slate-800 leading-relaxed">あなたは<br><span class="text-4xl font-black text-blue-600 my-2 block">${tempSelectedName}</span><br>さんであってますか？</h2>
                             </div>
                             <div class="space-y-4">
                                 <button onclick="saveUser()" class="w-full bg-blue-600 text-white font-bold py-5 rounded-2xl shadow-lg active:scale-95 transition-all text-lg tracking-widest">はい、私です</button>
@@ -162,11 +168,9 @@
                     <header class="flex justify-between items-start mb-10 pt-4 px-2">
                         <div>
                             <h1 class="text-2xl font-black text-slate-900 tracking-tighter leading-none text-blue-600">AKK-EVIDENCE</h1>
-                            <div class="flex items-center gap-2 mt-2">
+                            <div class="flex items-center gap-2 mt-2 text-blue-600 font-black text-[10px] tracking-widest uppercase italic">
                                 <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-                                <span class="text-blue-600 font-bold text-[11px] tracking-widest uppercase italic">${userName}</span>
-                                <span class="text-slate-300 text-[10px]">|</span>
-                                <span class="text-slate-400 text-[10px] font-bold">${todayStr}</span>
+                                ${userName} <span class="text-slate-300 font-normal ml-1">/ ${todayStr}</span>
                             </div>
                         </div>
                         <div class="bg-slate-900 text-white text-[10px] font-black px-4 py-2 rounded-full shadow-lg leading-none">${getDayText()}</div>
@@ -183,6 +187,7 @@
                 </div>`;
         }
 
+        // --- ロジック ---
         window.checkUser = () => { const v = document.getElementById('uSelect').value; if (!v) return; tempSelectedName = v; render(); };
         window.saveUser = () => { if (!tempSelectedName) return; userName = tempSelectedName; localStorage.setItem(KEY_USER, userName); render(); };
         window.resetApp = () => { if(confirm("初期登録をやり直しますか？")){ localStorage.removeItem(KEY_USER); localStorage.removeItem(KEY_DONE); userName = ""; tempSelectedName = ""; location.reload(); } };
@@ -190,7 +195,7 @@
         window.upd = (idx, val) => { document.getElementById(`v-${idx}`).innerText = val; touchedSet.add(idx); if (touchedSet.size === VAS_DEFS[currentMode].length) { const b = document.getElementById('sBtn'); if (b) { b.disabled = false; b.classList.remove('opacity-30'); } } };
 
         window.send = async () => {
-            if (!WEB_APP_URL) return alert("URL未設定です。コードの16行目を確認してください。");
+            if (!WEB_APP_URL) return alert("URL未設定です。");
             const btn = document.getElementById('sBtn'); btn.disabled = true; btn.innerText = "送信中...";
             const payload = {
                 name: userName, dayText: getDayText(), type: currentMode,
