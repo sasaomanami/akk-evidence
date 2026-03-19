@@ -29,19 +29,18 @@
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw-ZIAfYdlPZ3IGwsUL-vfQuXujVXmb_LYSRheZ7qT-ySowGIQELavurTl9Bix93IMw/exec"; 
         const START_DATE = new Date("2026/03/28");
         
-        // 五十音順に並べ替え、ニックネームを追加したリスト
         const SUBJECTS = [
             "石河和美", "枝常拓", "大畑一真（ズマ）", "佐野康倫", "清水あやか", 
             "鷲見沙織", "関田越子", "長尾優斗", "本多駿", "皆川望帆", "安田まゆか"
         ];
 
         // ==========================================
-        // 2. 状態管理（v18.9 Stable）
+        // 2. 状態管理（v19.0 Stable）
         // ==========================================
-        const VERSION = "18.9";
-        const KEY_USER = 'akk_u_189';
-        const KEY_DONE = 'akk_d_189';
-        const KEY_DATE = 'akk_t_189';
+        const VERSION = "19.0";
+        const KEY_USER = 'akk_u_190';
+        const KEY_DONE = 'akk_d_190';
+        const KEY_DATE = 'akk_t_190';
 
         let userName = localStorage.getItem(KEY_USER) || "";
         let tempSelectedName = ""; 
@@ -58,11 +57,26 @@
             localStorage.setItem(KEY_DATE, todayStr);
         }
 
+        // 表に基づいたVAS定義の修正
         const VAS_DEFS = {
-            "朝食前": [{n:"今の空腹感は？", l:"全く空腹でない", r:"これ以上ないほど空腹"}, {n:"食べ物への執着は？", l:"全く考えていない", r:"それしか考えられない"}],
-            "夕食直前": [{n:"今の空腹感は？", l:"全く空腹でない", r:"これ以上ないほど空腹"}, {n:"食べ物への執着は？", l:"全く考えていない", r:"それしか考えられない"}],
-            "夕食直後": [{n:"今の満腹感は？", l:"全く満腹でない", r:"これ以上ないほど満腹"}, {n:"今の満足感は？", l:"全く満足していない", r:"非常に満足している"}, {n:"推定摂取可能量", l:"食べられない", r:"たくさん食べられる"}],
-            "夕食2時間後": [{n:"満腹感の持続（腹持ち）", l:"続いていない", r:"しっかり続いている"}, {n:"間食への欲求は？", l:"全くない", r:"猛烈にある"}, {n:"推定摂取可能量", l:"食べられない", r:"たくさん食べられる"}]
+            "朝食前": [
+                {n:"今の空腹感はどのくらいですか？", l:"全く空腹ではない", r:"これ以上ないほど空腹"},
+                {n:"今、食べ物のことで頭がいっぱい（執着）ですか？", l:"全く考えていない", r:"それしか考えられない"}
+            ],
+            "夕食直前": [
+                {n:"今の空腹感はどのくらいですか？", l:"全く空腹ではない", r:"これ以上ないほど空腹"},
+                {n:"今、食べ物のことで頭がいっぱい（執着）ですか？", l:"全く考えていない", r:"それしか考えられない"}
+            ],
+            "夕食直後": [
+                {n:"今、お腹はいっぱい（満腹）ですか？", l:"全く満腹ではない", r:"これ以上ないほど満腹"},
+                {n:"今の食事に対する満足感（充足感）はどのくらいですか？", l:"全く満足していない", r:"非常に満足している"},
+                {n:"今からどれくらい食べられそうですか？", l:"全く食べられそうにない", r:"非常にたくさん食べられそう"}
+            ],
+            "夕食2時間後": [
+                {n:"食事から2時間経ちましたが、まだ満腹感は続いていますか？（腹持ち）", l:"全く続いていない", r:"しっかり続いている"},
+                {n:"今からどれくらい食べられそうですか？", l:"全く食べられそうにない", r:"非常にたくさん食べられそう"},
+                {n:"今、何か甘いものやスナック菓子を食べたい欲求（間食欲）はありますか？", l:"全くない", r:"猛烈にある"}
+            ]
         };
 
         function getDayText() {
@@ -115,15 +129,15 @@
                             ${defs.map((d, i) => `
                                 <div class="space-y-4">
                                     <div class="flex justify-between items-end px-1">
-                                        <label class="font-bold text-slate-700 text-sm">${d.n}</label>
-                                        <span id="v-${i}" class="text-4xl font-black text-blue-600 italic">--</span>
+                                        <label class="font-bold text-slate-700 text-sm leading-tight w-3/4">${d.n}</label>
+                                        <span id="v-${i}" class="text-4xl font-black text-blue-600 italic leading-none">--</span>
                                     </div>
                                     <div class="px-1">
                                         <div class="flex justify-between text-[10px] font-black text-slate-300 mb-1"><span>0</span><span>50</span><span>100</span></div>
                                         <input type="range" min="0" max="100" value="50" oninput="upd(${i}, this.value)" class="vas-slider">
                                         <div class="flex justify-between text-[10px] font-bold text-slate-400 mt-2 gap-4">
                                             <span class="w-1/3 text-left leading-tight">${d.l}</span>
-                                            <span class="w-1/3 text-center text-blue-100">50</span>
+                                            <span class="w-1/3 text-center text-blue-100 italic">50</span>
                                             <span class="w-1/3 text-right leading-tight">${d.r}</span>
                                         </div>
                                     </div>
@@ -195,13 +209,14 @@
         window.upd = (idx, val) => { document.getElementById(`v-${idx}`).innerText = val; touchedSet.add(idx); if (touchedSet.size === VAS_DEFS[currentMode].length) { const b = document.getElementById('sBtn'); if (b) { b.disabled = false; b.classList.remove('opacity-30'); } } };
 
         window.send = async () => {
-            if (!WEB_APP_URL) return alert("URL未設定です。");
+            if (!WEB_APP_URL) return alert("URL未設定です。コードの16行目を確認してください。");
             const btn = document.getElementById('sBtn'); btn.disabled = true; btn.innerText = "送信中...";
+            const ranges = document.querySelectorAll('input[type="range"]');
             const payload = {
                 name: userName, dayText: getDayText(), type: currentMode,
-                val1: document.querySelectorAll('input[type="range"]')[0]?.value || "",
-                val2: document.querySelectorAll('input[type="range"]')[1]?.value || "",
-                val3: document.querySelectorAll('input[type="range"]')[2]?.value || "",
+                val1: ranges[0]?.value || "",
+                val2: ranges[1]?.value || "",
+                val3: ranges[2]?.value || "",
                 intake: document.getElementById('q_intake')?.value || "",
                 intakeReason: document.getElementById('q_intake_reason')?.value || "",
                 snack: document.getElementById('q_snack')?.value || "",
