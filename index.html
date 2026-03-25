@@ -25,22 +25,22 @@
     </div>
 
     <div id="app" class="w-full max-w-md bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8 my-4 min-h-[600px] flex flex-col items-center">
+        <!-- 起動メッセージ -->
         <div id="loading-area" class="mt-20 text-center">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-            <p class="text-blue-600 font-bold">システムを起動中...</p>
+            <p class="text-blue-600 font-bold">システムを起動しています...</p>
         </div>
     </div>
 
     <script>
         // ==========================================
-        // 1. 送信先URLの設定（重要）
+        // 1. 送信先URLの設定（完全反映版）
         // ==========================================
         
-        // 【A】管理者用：全員のデータが集まる「統合マスターシート」のURL
+        // 全員のデータが集まる統合マスターシートのURL
         const MASTER_URL = "https://script.google.com/macros/s/AKfycbw-ZIAfYdlPZ3IGwsUL-vfQuXujVXmb_LYSRheZ7qT-ySowGIQELavurTl9Bix93IMw/exec";
 
-        // 【B】個人別：各人が閲覧するための専用シートURL
-        // 名前ごとに取得したGAS URLを貼り付けてください。
+        // 各人専用のシートURL
         const WEB_APP_URLS = {
             "石河和美": "https://script.google.com/macros/s/AKfycbw86qwQ--vsgUXPqxfrS7q_hIwWxxut8gcxottHQFciQxgA_E9QeZ9HBcJ8GEOEnZFI/exec",
             "枝常拓": "https://script.google.com/macros/s/AKfycbz2Q3tQQhK5EFcQoZM8UDA2NJBxr8n1vIxdUOLXJh71cH99hmwS2NAqGL27hoABIgs9/exec",
@@ -52,6 +52,7 @@
             "本多駿": "https://script.google.com/macros/s/AKfycbysgcUiJX83jghHHzMa7sWsV6DiTXu_PhpOryejyr5mqnMMIAmgpgQDV_RFld5yTn-c7Q/exec",
             "皆川望帆": "https://script.google.com/macros/s/AKfycbwyZ1OFZ0XnFjt-PCeOgvFvjimYGdhKoFgCP0y4IXXUZHSHjV_Wv1n3X9-rMSjkNNpK/exec",
             "安田まゆか": "https://script.google.com/macros/s/AKfycbxFW89mg7BWPuyzPk-SGQt4NJwCEXs7oeedHRXGGtV6BBJbj12Y_cp8Dywp_CSBpqYOvA/exec",
+            "笹尾（個人テスト用）": "https://script.google.com/macros/s/AKfycbyfJsMN2X75r9G4_VxszDRURGEB-c9IClV3dLZkUETNca5JcCa6J6U742yMQ3OdZtMMaw/exec",
             "管理者用テストID": "https://script.google.com/macros/s/AKfycbw-ZIAfYdlPZ3IGwsUL-vfQuXujVXmb_LYSRheZ7qT-ySowGIQELavurTl9Bix93IMw/exec" 
         };
 
@@ -59,11 +60,11 @@
         const SUBJECTS = Object.keys(WEB_APP_URLS);
 
         // ==========================================
-        // 2. 状態管理（v21.7 最終決定版）
+        // 2. 状態管理（v22.1 URL反映済・安定版）
         // ==========================================
-        const VERSION = "21.7";
-        const KEY_USER = 'akk_v21_user_name'; 
-        const PREFIX_DONE = 'akk_v21_history_'; 
+        const VERSION = "22.1";
+        const KEY_USER = 'akk_v22_user_name'; 
+        const PREFIX_DONE = 'akk_v22_history_'; 
 
         let userName = localStorage.getItem(KEY_USER) || "";
         let tempSelectedName = ""; 
@@ -125,7 +126,8 @@
         window.changeDate = (offset) => { if (!isProcessing) { viewingOffset = offset; render(); } };
         window.checkUser = () => { const v = document.getElementById('uSelect').value; if (!v) return; tempSelectedName = v; render(); };
         window.saveUser = () => { if (!tempSelectedName) return; userName = tempSelectedName; localStorage.setItem(KEY_USER, userName); render(); };
-        window.resetApp = () => { if(confirm("登録名をリセットしますか？（履歴は保持されます）")){ localStorage.removeItem(KEY_USER); location.reload(); } };
+        window.resetApp = () => { if(confirm("登録名をリセットしますか？（送信履歴は保持されます）")){ localStorage.removeItem(KEY_USER); location.reload(); } };
+        
         window.setM = (m) => { if (getCompletedTasks()[m]) return alert("送信済みです。"); currentMode = m; touchedSet = new Set(); render(); window.scrollTo(0, 0); };
         window.upd = (idx, val) => { document.getElementById(`v-${idx}`).innerText = val; touchedSet.add(idx); if (touchedSet.size === VAS_DEFS[currentMode].length) { const b = document.getElementById('sBtn'); if (b) { b.disabled = false; b.classList.remove('opacity-30'); } } };
 
@@ -133,16 +135,16 @@
             const modeAtSend = currentMode;
             const { dayText, dateStr } = getTargetInfo();
             const completedAtSend = getCompletedTasks();
-            if (completedAtSend[modeAtSend]) return alert("送信済みです。");
+            if (completedAtSend[modeAtSend]) return alert("既に送信済みです。");
 
             // 同時送信先の決定
-            const destinations = [MASTER_URL]; // 統合シート
+            const destinations = [MASTER_URL];
             const individualUrl = WEB_APP_URLS[userName];
             if (individualUrl && individualUrl !== MASTER_URL) {
-                destinations.push(individualUrl); // 個別シート（空でなければ追加）
+                destinations.push(individualUrl); 
             }
 
-            if (!confirm(`【${viewingOffset === 0 ? '今日' : '昨日'}分（${dateStr}）】のデータを送信します。よろしいですか？`)) return;
+            if (!confirm(`【${viewingOffset === 0 ? '今日' : '昨日'}分（${dateStr}）】の「${modeAtSend}」を送信します。よろしいですか？`)) return;
 
             isProcessing = true;
             document.getElementById('processing-overlay').style.display = 'flex';
@@ -164,12 +166,13 @@
             };
 
             try {
-                // 並列で送信
                 await Promise.all(destinations.map(url => 
                     fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) })
                 ));
                 
-                localStorage.setItem(PREFIX_DONE + dateStr, JSON.stringify({ ...completedAtSend, [modeAtSend]: true }));
+                const updatedCompleted = { ...completedAtSend, [modeAtSend]: true };
+                localStorage.setItem(PREFIX_DONE + dateStr, JSON.stringify(updatedCompleted));
+                
                 document.getElementById('processing-overlay').style.display = 'none';
                 alert(modeAtSend === "夕食2時間後" ? "お疲れ様でした。明日もよろしくお願いします！" : "送信完了しました");
                 currentMode = null; isProcessing = false; render();
@@ -179,6 +182,7 @@
                 btn.disabled = false; isProcessing = false;
             }
         };
+
         window.onload = () => { setTimeout(render, 300); };
     </script>
 </body>
