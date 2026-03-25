@@ -27,7 +27,7 @@
         <!-- 起動メッセージ -->
         <div id="loading-area" class="mt-20 text-center">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-            <p class="text-blue-600 font-bold">システムを起動しています...</p>
+            <p class="text-blue-600 font-bold">システムを起動中...</p>
         </div>
     </div>
 
@@ -45,17 +45,17 @@
         ];
 
         // ==========================================
-        // 2. 状態管理（v20.0 最終安定版）
+        // 2. 状態管理
         // ==========================================
-        const VERSION = "20.0";
-        const KEY_USER = 'akk_user_v200';
+        const VERSION = "21.1";
+        const KEY_USER = 'akk_user_v200'; // ユーザー名は維持
         const PREFIX_DONE = 'akk_done_date_'; 
 
         let userName = localStorage.getItem(KEY_USER) || "";
         let tempSelectedName = ""; 
         let currentMode = null;
         let touchedSet = new Set();
-        let viewingOffset = 0; // 0: 今日, -1: 昨日
+        let viewingOffset = 0; 
         let isProcessing = false;
 
         const VAS_DEFS = {
@@ -79,27 +79,18 @@
             ]
         };
 
-        // ターゲット日の計算とDay表記の生成
         function getTargetInfo() {
             const d = new Date();
             d.setHours(0,0,0,0);
             d.setDate(d.getDate() + viewingOffset);
-            
-            // カレンダー上の日付文字列（2026/03/24 等）
             const dateStr = d.toLocaleDateString('ja-JP');
-            
-            // 開始日からの経過日数
             const diffTime = d - START_DATE;
             const diffDays = Math.floor(diffTime / 86400000) + 1;
-            
-            // スプレッドシート送信用。解析の補助として日付も入れる
             const label = diffDays <= 0 ? "Baseline" : "Day " + diffDays;
             const dayText = `${label} (${dateStr})`;
-            
             return { dateStr, dayText };
         }
 
-        // 指定した日の完了リストを localStorage から取得
         function getCompletedTasks() {
             const { dateStr } = getTargetInfo();
             try {
@@ -112,7 +103,6 @@
             const { dateStr, dayText } = getTargetInfo();
             const completedTasks = getCompletedTasks();
             
-            // 初期設定画面
             if (!userName) {
                 if (!tempSelectedName) {
                     app.innerHTML = `
@@ -142,7 +132,6 @@
                 return;
             }
 
-            // 入力画面
             if (currentMode) {
                 const defs = VAS_DEFS[currentMode];
                 const isNight = currentMode === "夕食2時間後";
@@ -176,7 +165,7 @@
                             <div class="space-y-4">
                                 <label class="text-[12px] font-bold text-slate-500 block">2. サプリ摂取状況</label>
                                 <select id="q_intake" onchange="document.getElementById('rb').classList.toggle('hidden', this.value !== '飲んでいない')" class="w-full p-4 bg-slate-50 border-2 rounded-xl font-bold outline-none focus:border-blue-500 appearance-none"><option>飲んだ</option><option>飲んでいない</option></select>
-                                <div id="rb" class="hidden p-4 bg-red-50 rounded-xl"><select id="q_intake_reason" class="w-full p-2 rounded-lg border font-bold text-sm outline-none"><option value="">理由を選択</option><option>飲み忘れ</option><option>体調不良</option><option>外出</option><option>多忙</option><option>その他</option></select></div>
+                                <div id="rb" class="hidden p-4 bg-red-50 rounded-xl"><select id="q_intake_reason" class="w-full p-2 rounded-lg border font-bold text-sm outline-none"><option value="">理由を選択</option><option value="飲み忘れ">飲み忘れ</option><option value="体調不良">体調不良</option><option value="外出">外出</option><option value="多忙">多忙</option><option value="その他">その他</option></select></div>
                             </div>
                             <div class="space-y-4">
                                 <label class="text-[12px] font-bold text-slate-500 block">3. 間食（カロミル以外）</label>
@@ -197,13 +186,11 @@
                         </div>` : ''}
                         <div class="mt-8 pb-20">
                             <button id="sBtn" onclick="send()" disabled class="w-full bg-blue-600 text-white font-black py-5 rounded-[2rem] shadow-xl opacity-30 tracking-widest transition-all italic">データを送信する</button>
-                            <p class="text-center text-[10px] text-slate-300 mt-4 font-bold tracking-widest">全て入力すると送信できます</p>
                         </div>
                     </div>`;
                 return;
             }
 
-            // メインダッシュボード
             app.innerHTML = `
                 <div class="w-full animate-in fade-in duration-500">
                     <header class="flex justify-between items-start mb-6 pt-4 px-2">
@@ -217,7 +204,6 @@
                         <div class="bg-slate-900 text-white text-[10px] font-black px-4 py-2 rounded-full shadow-lg leading-none">${dayText.split(' ')[0]}</div>
                     </header>
 
-                    <!-- 日付切り替えタブ -->
                     <div class="flex p-1 bg-slate-100 rounded-2xl mb-8">
                         <button onclick="changeDate(0)" class="flex-1 py-3 rounded-xl font-bold text-sm transition-all ${viewingOffset === 0 ? 'tab-active shadow-md' : 'tab-inactive'}">今日</button>
                         <button onclick="changeDate(-1)" class="flex-1 py-3 rounded-xl font-bold text-sm transition-all ${viewingOffset === -1 ? 'tab-active shadow-md' : 'tab-inactive'}">昨日分を入力</button>
@@ -227,13 +213,18 @@
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">Progress of ${viewingOffset === 0 ? 'Today' : 'Yesterday'}</p>
                         ${Object.keys(VAS_DEFS).map(mode => {
                             const done = completedTasks[mode];
-                            return `<button onclick="${done ? '' : `setM('${mode}')`}" class="w-full flex items-center justify-between p-6 rounded-[2rem] border transition-all ${done ? 'bg-slate-50 border-slate-50 opacity-40 cursor-default' : 'bg-white border-slate-100 shadow-sm active:scale-95 active:bg-slate-50'}"><span class="font-black text-slate-800 text-lg leading-none">${mode}</span>${done ? '<span class="text-emerald-500 font-bold text-[10px] uppercase tracking-widest underline decoration-emerald-200 underline-offset-4">Sent ✅</span>' : '<span class="text-slate-200 text-xl font-bold">＞</span>'}</button>`;
+                            // 重複ガード：doneならクリック不可（onclickを空にする）
+                            return `<button onclick="${done ? '' : `setM('${mode}')`}" 
+                                class="w-full flex items-center justify-between p-6 rounded-[2rem] border transition-all ${done ? 'bg-slate-50 border-slate-50 opacity-40 cursor-default' : 'bg-white border-slate-100 shadow-sm active:bg-slate-50 active:scale-[0.98]'}">
+                                <span class="font-black text-slate-800 text-lg leading-none">${mode}</span>
+                                ${done ? '<span class="text-emerald-500 font-bold text-[10px] uppercase tracking-widest underline decoration-emerald-200 underline-offset-4">Sent ✅</span>' : '<span class="text-slate-200 text-xl font-bold">＞</span>'}
+                            </button>`;
                         }).join('')}
                     </div>
                     
-                    ${viewingOffset === -1 ? `<p class="mt-8 bg-amber-50 text-amber-700 text-[10px] p-4 rounded-xl font-bold leading-relaxed border border-amber-100">※「昨日」タブでは、前日の記録を補完できます。<br>送信前に確認ダイアログの日付を必ずご確認ください。</p>` : ''}
+                    ${viewingOffset === -1 ? `<p class="mt-8 bg-amber-50 text-amber-700 text-[10px] p-4 rounded-xl font-bold leading-relaxed border border-amber-100 italic">※「昨日分」を選択中です。入力間違いにご注意ください。</p>` : ''}
 
-                    <div class="mt-20 text-center"><button onclick="resetApp()" class="text-[9px] text-slate-300 font-bold uppercase tracking-widest underline underline-offset-4 decoration-slate-100">登録情報を変更する</button></div>
+                    <div class="mt-24 text-center"><button onclick="resetApp()" class="text-[9px] text-slate-300 font-bold uppercase tracking-widest underline underline-offset-4 decoration-slate-100">登録情報をリセットする</button></div>
                     <p class="text-center text-[8px] text-slate-100 mt-10 tracking-[0.4em] font-bold uppercase leading-none">System ${VERSION} Stable Release</p>
                 </div>`;
         }
@@ -255,8 +246,12 @@
             const completedAtSend = getCompletedTasks();
             const { dayText, dateStr } = getTargetInfo();
             
-            // 重複チェック（送信直前にもう一度）
-            if (completedAtSend[modeAtSend]) return alert("既に送信済みです。");
+            // 重要：送信直前に二重送信でないか最終チェック
+            if (completedAtSend[modeAtSend]) {
+                alert("この項目は既に送信済みです。上書きはできません。");
+                currentMode = null; render();
+                return;
+            }
 
             if (!confirm(`【${viewingOffset === 0 ? '今日' : '昨日'}分（${dateStr}）】の「${modeAtSend}」を送信します。よろしいですか？`)) return;
 
@@ -284,7 +279,7 @@
             try {
                 await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
                 
-                // 完了状態の保存（その日付のキーに保存）
+                // 完了状態をローカルに保存
                 const updatedCompleted = { ...completedAtSend, [modeAtSend]: true };
                 localStorage.setItem(PREFIX_DONE + dateStr, JSON.stringify(updatedCompleted));
                 
